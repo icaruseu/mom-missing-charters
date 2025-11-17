@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Project-specific
+.env
+*.db
+cache/
