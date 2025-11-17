@@ -3,6 +3,7 @@
 import logging
 import time
 from pathlib import Path
+from typing import final
 
 from .backup_parser import BackupParser
 from .database import Database
