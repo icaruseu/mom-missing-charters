@@ -219,6 +219,11 @@ def generate_path_variants(normalized_path: str, raw_path: str | None) -> list[s
     if url_encoded not in variants:
         variants.append(url_encoded)
 
+    # URL query-string encoding (spaces as +)
+    plus_encoded = normalized_path.replace(' ', '+')
+    if plus_encoded not in variants:
+        variants.append(plus_encoded)
+
     cp437_corrupted = encode_path_cp437_corruption(normalized_path)
     if cp437_corrupted not in variants and cp437_corrupted != normalized_path:
         variants.append(cp437_corrupted)
