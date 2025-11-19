@@ -1,7 +1,5 @@
-# MOM Missing Charters Tracker - Justfile
-# Run 'just' or 'just --list' to see all available commands
+# MOM Missing Charters Tracker
 
-# Default recipe - show help
 default:
     @just --list
 
@@ -66,6 +64,22 @@ parent-report:
 # Save parent paths report to CSV
 parent-report-save:
     uv run main.py parent-report --save
+
+# Extract missing charters to ZIP file (auto-generated filename)
+extract-missing:
+    uv run main.py extract-missing
+
+# Extract missing charters with verbose logging
+extract-missing-verbose:
+    uv run main.py extract-missing --verbose
+
+# Extract missing charters to specific file
+extract-missing-to file:
+    uv run main.py extract-missing --output {{file}}
+
+# Extract missing charters and save failed items log
+extract-missing-with-log:
+    uv run main.py extract-missing --save-failed
 
 # === Database Management ===
 

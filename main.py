@@ -5,8 +5,10 @@ import csv
 import logging
 import os
 import sys
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from zipfile import ZipFile
 
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -14,7 +16,7 @@ from tqdm import tqdm
 from src.azure_client import AzureBackupClient
 from src.charter_tracker import CharterTracker
 from src.database import Database
-from src.utils import should_process_backup
+from src.utils import generate_path_variants, normalize_path, should_process_backup
 
 
 def setup_logging(verbose: bool = False):
@@ -276,6 +278,134 @@ def cmd_parent_report(args):
                 print("Use --save or --output to save full report to CSV")
 
 
+def cmd_extract_missing(args):
+    """Extract missing charters from their last-seen backups into a new ZIP."""
+    setup_logging(verbose=args.verbose)
+    config = load_config()
+
+    print("MOM Missing Charters Tracker - Extract Missing")
+    print("=" * 60)
+
+    # Initialize components
+    azure_client = AzureBackupClient(
+        cache_dir=config["backup_cache_dir"],
+        connection_string=config["azure_connection_string"],
+        container_name=config["azure_container_name"],
+        container_sas_url=config["azure_container_sas_url"],
+    )
+
+    with Database(config["sqlite_db_path"]) as db:
+        missing_charters = db.get_missing_charters_for_extraction()
+
+        if not missing_charters:
+            print("\nNo missing charters found!")
+            return
+
+        print(f"\nFound {len(missing_charters)} missing charters")
+
+        charters_by_backup = defaultdict(list)
+        for charter in missing_charters:
+            backup_filename = charter["backup_filename"]
+            charters_by_backup[backup_filename].append(charter)
+
+        print(f"Spanning {len(charters_by_backup)} backup file(s)")
+
+        if args.output:
+            output_path = Path(args.output)
+        else:
+            reports_dir = Path(config["reports_dir"])
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            output_path = reports_dir / f"missing-charters-{timestamp}.zip"
+
+        extracted_count = 0
+        failed_count = 0
+        failed_items = []
+
+        with ZipFile(output_path, "w") as output_zip:
+            for backup_filename in tqdm(
+                sorted(charters_by_backup.keys()),
+                desc="Processing backups",
+                unit="backup",
+            ):
+                charters = charters_by_backup[backup_filename]
+
+                try:
+                    backup_path = azure_client.get_backup(backup_filename)
+
+                    with ZipFile(backup_path, "r") as source_zip:
+                        source_entries = set(source_zip.namelist())
+
+                        for charter in tqdm(
+                            charters,
+                            desc=f"  Extracting from {backup_filename}",
+                            unit="file",
+                            leave=False,
+                        ):
+                            try:
+                                file_path = charter["file_path"]
+                                file_path_raw = charter["file_path_raw"]
+
+                                path_variants = generate_path_variants(file_path, file_path_raw)
+
+                                found = False
+                                matched_variant = None
+                                for candidate in path_variants:
+                                    if candidate and candidate in source_entries:
+                                        content = source_zip.read(candidate)
+                                        output_zip.writestr(file_path, content)
+                                        extracted_count += 1
+                                        found = True
+                                        matched_variant = candidate
+                                        break
+
+                                if not found:
+                                    failed_count += 1
+                                    failed_items.append(
+                                        {
+                                            "path": file_path,
+                                            "backup": backup_filename,
+                                            "error": f"File not found in ZIP (tried {len(path_variants)} variants)",
+                                        }
+                                    )
+                            except Exception as e:
+                                failed_count += 1
+                                failed_items.append(
+                                    {
+                                        "path": charter["file_path"],
+                                        "backup": backup_filename,
+                                        "error": str(e),
+                                    }
+                                )
+
+                except Exception as e:
+                    tqdm.write(f"  ✗ Failed to process {backup_filename}: {e}")
+                    for charter in charters:
+                        failed_count += 1
+                        failed_items.append(
+                            {
+                                "path": charter["file_path"],
+                                "backup": backup_filename,
+                                "error": f"Backup processing failed: {e}",
+                            }
+                        )
+
+        print(f"\nExtraction complete!")
+        print(f"  Successfully extracted: {extracted_count} charters")
+        print(f"  Failed: {failed_count} charters")
+        print(f"  Output: {output_path}")
+
+        if failed_items and args.save_failed:
+            failed_path = output_path.with_suffix(".failed.csv")
+            with open(failed_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=["path", "backup", "error"])
+                writer.writeheader()
+                writer.writerows(failed_items)
+            print(f"  Failed items log: {failed_path}")
+        elif failed_items:
+            print(f"\nUse --save-failed to save a list of failed extractions")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -316,6 +446,19 @@ def main():
         "--limit", "-l", type=int, default=20, help="Limit console output"
     )
 
+    extract_parser = subparsers.add_parser(
+        "extract-missing", help="Extract missing charters from their last-seen backups"
+    )
+    extract_parser.add_argument(
+        "--output", "-o", help="Output ZIP file path (default: auto-generated in reports directory)"
+    )
+    extract_parser.add_argument(
+        "--save-failed", action="store_true", help="Save list of failed extractions to CSV"
+    )
+    extract_parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -332,6 +475,8 @@ def main():
         cmd_report(args)
     elif args.command == "parent-report":
         cmd_parent_report(args)
+    elif args.command == "extract-missing":
+        cmd_extract_missing(args)
 
 
 if __name__ == "__main__":

@@ -71,7 +71,6 @@ class Database:
             )
         """)
 
-        # Migration: Add parent_path column if it doesn't exist
         cursor.execute("PRAGMA table_info(charters)")
         columns = [row[1] for row in cursor.fetchall()]
         if "parent_path" not in columns:
@@ -595,6 +594,27 @@ class Database:
             WHERE c.current_status = 'missing'
             GROUP BY c.parent_path
             ORDER BY missing_count DESC, c.parent_path
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_missing_charters_for_extraction(self) -> list:
+        """Get missing charters with backup info for extraction.
+
+        Returns:
+            List of dictionaries with charter paths and their last-seen backup info
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT
+                c.id as charter_id,
+                c.file_path,
+                c.file_path_raw,
+                b.id as backup_id,
+                b.filename as backup_filename
+            FROM charters c
+            LEFT JOIN backups b ON c.last_seen_backup_id = b.id
+            WHERE c.current_status = 'missing'
+            ORDER BY b.filename, c.file_path
         """)
         return [dict(row) for row in cursor.fetchall()]
 
