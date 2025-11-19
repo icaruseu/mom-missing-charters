@@ -1,9 +1,12 @@
 """MOM Missing Charters Tracker - CLI Entry Point."""
 
 import argparse
+import csv
 import logging
 import os
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -61,6 +64,7 @@ def load_config() -> dict:
         "azure_container_name": container_name,
         "backup_cache_dir": os.getenv("BACKUP_CACHE_DIR", "./cache/backups"),
         "sqlite_db_path": os.getenv("SQLITE_DB_PATH", "./charters.db"),
+        "reports_dir": os.getenv("REPORTS_DIR", "./reports"),
         "backup_frequency": int(os.getenv("BACKUP_FREQUENCY", "7")),
         "charter_base_path": os.getenv(
             "CHARTER_BASE_PATH", "db/mom-data/metadata.charter.public"
@@ -194,16 +198,27 @@ def cmd_report(args):
         print("=" * 60)
 
         if args.output:
-            import csv
+            output_path = args.output
+        elif args.save:
+            # Auto-generate filename in reports directory
+            reports_dir = Path(config["reports_dir"])
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            output_path = reports_dir / f"missing-charters-{timestamp}.csv"
+        else:
+            output_path = None
 
-            with open(args.output, "w", newline="", encoding="utf-8") as f:
+        if output_path:
+            with open(output_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=missing[0].keys())
                 writer.writeheader()
                 writer.writerows(missing)
-            print(f"Report written to: {args.output}")
+            print(f"Report written to: {output_path}")
         else:
             for charter in missing[: args.limit]:
                 print(f"\nPath: {charter['file_path']}")
+                if charter.get("parent_path"):
+                    print(f"  Parent: {charter['parent_path']}")
                 print(
                     f"  First seen: {charter['first_seen_date']} ({charter['first_seen_backup']})"
                 )
@@ -213,7 +228,52 @@ def cmd_report(args):
 
             if len(missing) > args.limit:
                 print(f"\n... and {len(missing) - args.limit} more")
-                print("Use --output to save full report to CSV")
+                print("Use --save or --output to save full report to CSV")
+
+
+def cmd_parent_report(args):
+    """Generate parent paths report showing missing charters by collection."""
+    config = load_config()
+
+    with Database(config["sqlite_db_path"]) as db:
+        parent_stats = db.get_missing_charters_by_parent()
+
+        if not parent_stats:
+            print("\nNo missing charters found!")
+            return
+
+        total_missing = sum(p["missing_count"] for p in parent_stats)
+        print(f"\nMissing Charters by Parent Path ({len(parent_stats)} collections, {total_missing} total charters)")
+        print("=" * 60)
+
+        if args.output:
+            output_path = args.output
+        elif args.save:
+            # Auto-generate filename in reports directory
+            reports_dir = Path(config["reports_dir"])
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            output_path = reports_dir / f"missing-by-parent-{timestamp}.csv"
+        else:
+            output_path = None
+
+        if output_path:
+            with open(output_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=parent_stats[0].keys())
+                writer.writeheader()
+                writer.writerows(parent_stats)
+            print(f"Report written to: {output_path}")
+        else:
+            for parent in parent_stats[: args.limit]:
+                parent_path = parent["parent_path"] or "(root)"
+                print(f"\n{parent_path}")
+                print(f"  Missing charters: {parent['missing_count']}")
+                print(f"  First seen range: {parent['earliest_first_seen']} to {parent['latest_first_seen']}")
+                print(f"  Disappeared range: {parent['earliest_disappearance']} to {parent['latest_disappearance']}")
+
+            if len(parent_stats) > args.limit:
+                print(f"\n... and {len(parent_stats) - args.limit} more collections")
+                print("Use --save or --output to save full report to CSV")
 
 
 def main():
@@ -239,6 +299,20 @@ def main():
     )
     report_parser.add_argument("--output", "-o", help="Output CSV file path")
     report_parser.add_argument(
+        "--save", "-s", action="store_true", help="Save to reports directory with auto-generated filename"
+    )
+    report_parser.add_argument(
+        "--limit", "-l", type=int, default=20, help="Limit console output"
+    )
+
+    parent_report_parser = subparsers.add_parser(
+        "parent-report", help="Generate parent paths report (grouped by collection)"
+    )
+    parent_report_parser.add_argument("--output", "-o", help="Output CSV file path")
+    parent_report_parser.add_argument(
+        "--save", "-s", action="store_true", help="Save to reports directory with auto-generated filename"
+    )
+    parent_report_parser.add_argument(
         "--limit", "-l", type=int, default=20, help="Limit console output"
     )
 
@@ -256,6 +330,8 @@ def main():
         cmd_stats(args)
     elif args.command == "report":
         cmd_report(args)
+    elif args.command == "parent-report":
+        cmd_parent_report(args)
 
 
 if __name__ == "__main__":

@@ -61,6 +61,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_path TEXT UNIQUE NOT NULL,
                 file_path_raw TEXT,
+                parent_path TEXT,
                 first_seen_backup_id INTEGER,
                 last_seen_backup_id INTEGER,
                 current_status TEXT DEFAULT 'present',
@@ -69,6 +70,12 @@ class Database:
                 UNIQUE(file_path)
             )
         """)
+
+        # Migration: Add parent_path column if it doesn't exist
+        cursor.execute("PRAGMA table_info(charters)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "parent_path" not in columns:
+            cursor.execute("ALTER TABLE charters ADD COLUMN parent_path TEXT")
 
         # Charter events table
         cursor.execute("""
@@ -110,6 +117,11 @@ class Database:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_charters_status
             ON charters(current_status)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_charters_parent_path
+            ON charters(parent_path)
         """)
 
         cursor.execute("""
@@ -221,12 +233,15 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def add_charter(self, file_path: str, file_path_raw: str, backup_id: int) -> int:
+    def add_charter(
+        self, file_path: str, file_path_raw: str, parent_path: str, backup_id: int
+    ) -> int:
         """Add a new charter.
 
         Args:
             file_path: Normalized charter path
             file_path_raw: Raw charter path from backup
+            parent_path: Parent collection path
             backup_id: Backup where first seen
 
         Returns:
@@ -236,18 +251,20 @@ class Database:
         cursor.execute(
             """
             INSERT INTO charters
-            (file_path, file_path_raw, first_seen_backup_id, last_seen_backup_id, current_status)
-            VALUES (?, ?, ?, ?, 'present')
+            (file_path, file_path_raw, parent_path, first_seen_backup_id, last_seen_backup_id, current_status)
+            VALUES (?, ?, ?, ?, ?, 'present')
         """,
-            (file_path, file_path_raw, backup_id, backup_id),
+            (file_path, file_path_raw, parent_path, backup_id, backup_id),
         )
         return cursor.lastrowid
 
-    def add_charters_batch(self, charters: list[tuple[str, str, int]]) -> list[int]:
+    def add_charters_batch(
+        self, charters: list[tuple[str, str, str, int]]
+    ) -> list[int]:
         """Add multiple charters in a batch.
 
         Args:
-            charters: List of (file_path, file_path_raw, backup_id) tuples
+            charters: List of (file_path, file_path_raw, parent_path, backup_id) tuples
 
         Returns:
             List of charter IDs in same order as input
@@ -257,12 +274,12 @@ class Database:
 
         cursor = self.conn.cursor()
 
-        values = [(fp, fpr, bid, bid, "present") for fp, fpr, bid in charters]
+        values = [(fp, fpr, pp, bid, bid, "present") for fp, fpr, pp, bid in charters]
         cursor.executemany(
             """
             INSERT INTO charters
-            (file_path, file_path_raw, first_seen_backup_id, last_seen_backup_id, current_status)
-            VALUES (?, ?, ?, ?, ?)
+            (file_path, file_path_raw, parent_path, first_seen_backup_id, last_seen_backup_id, current_status)
+            VALUES (?, ?, ?, ?, ?, ?)
         """,
             values,
         )
@@ -544,6 +561,7 @@ class Database:
             SELECT
                 c.file_path,
                 c.file_path_raw,
+                c.parent_path,
                 b1.filename as first_seen_backup,
                 b1.backup_date as first_seen_date,
                 b2.filename as last_seen_backup,
@@ -552,7 +570,31 @@ class Database:
             LEFT JOIN backups b1 ON c.first_seen_backup_id = b1.id
             LEFT JOIN backups b2 ON c.last_seen_backup_id = b2.id
             WHERE c.current_status = 'missing'
-            ORDER BY b2.backup_date DESC
+            ORDER BY c.parent_path, b2.backup_date DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_missing_charters_by_parent(self) -> list:
+        """Get missing charters grouped by parent path with aggregated statistics.
+
+        Returns:
+            List of parent path records with missing charter counts and date ranges
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT
+                c.parent_path,
+                COUNT(*) as missing_count,
+                MIN(b2.backup_date) as earliest_disappearance,
+                MAX(b2.backup_date) as latest_disappearance,
+                MIN(b1.backup_date) as earliest_first_seen,
+                MAX(b1.backup_date) as latest_first_seen
+            FROM charters c
+            LEFT JOIN backups b1 ON c.first_seen_backup_id = b1.id
+            LEFT JOIN backups b2 ON c.last_seen_backup_id = b2.id
+            WHERE c.current_status = 'missing'
+            GROUP BY c.parent_path
+            ORDER BY missing_count DESC, c.parent_path
         """)
         return [dict(row) for row in cursor.fetchall()]
 

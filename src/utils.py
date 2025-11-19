@@ -123,6 +123,45 @@ def format_datetime(dt: datetime) -> str:
     return dt.isoformat()
 
 
+def extract_parent_path(file_path: str, base_path: str) -> str:
+    """Extract parent collection path from charter file path.
+
+    Given a full charter path like:
+      /db/mom-data/metadata.charter.public/Austria/Vienna/AT-Wien/charter.cei.xml
+    And base path:
+      db/mom-data/metadata.charter.public
+    Returns:
+      Austria/Vienna/AT-Wien
+
+    Args:
+        file_path: Full charter file path
+        base_path: Base charter collection path
+
+    Returns:
+        Parent collection path (empty string if at root level)
+    """
+    norm_path = normalize_path(file_path)
+    norm_base = normalize_path(base_path)
+
+    # Ensure base path doesn't end with slash for consistent handling
+    if norm_base.endswith("/"):
+        norm_base = norm_base.rstrip("/")
+
+    # Remove base path prefix
+    if not norm_path.startswith(norm_base):
+        return ""
+
+    relative_path = norm_path[len(norm_base) :].lstrip("/")
+
+    # Remove filename (everything after last /)
+    if "/" in relative_path:
+        parent = relative_path.rsplit("/", 1)[0]
+        return parent
+    else:
+        # File is directly under base path (no parent collection)
+        return ""
+
+
 def should_process_backup(backup_index: int, frequency: int) -> bool:
     """Determine if a backup should be processed based on frequency.
 

@@ -7,7 +7,7 @@ from typing import final
 
 from .backup_parser import BackupParser
 from .database import Database
-from .utils import format_datetime, parse_backup_filename
+from .utils import extract_parent_path, format_datetime, parse_backup_filename
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -145,7 +145,10 @@ class CharterTracker:
                         self.current_state[normalized_path] = charter["id"]
                         existing_charter_ids.append(charter["id"])
                 else:
-                    new_charters.append((normalized_path, raw_path, backup_id))
+                    parent_path = extract_parent_path(
+                        normalized_path, self.charter_base_path
+                    )
+                    new_charters.append((normalized_path, raw_path, parent_path, backup_id))
 
             appeared_count = len(new_charters)
             if new_charters:
@@ -156,7 +159,7 @@ class CharterTracker:
                     f"[DB] Inserted {num_new:,} new charters in {time.time() - insert_start:.2f}s"
                 )
 
-                for (normalized_path, _, _), charter_id in zip(
+                for (normalized_path, _, _, _), charter_id in zip(
                     new_charters, charter_ids
                 ):
                     self.current_state[normalized_path] = charter_id
