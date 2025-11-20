@@ -152,7 +152,7 @@ def encode_exist_path(path: str) -> str:
     Returns:
         Path with encoded special characters
     """
-    special_chars = {'|': '&7C;'}
+    special_chars = {"|": "&7C;"}
 
     result = path
     for char, encoded in special_chars.items():
@@ -170,7 +170,7 @@ def encode_path_latin1_corruption(path: str) -> str:
         Path with simulated encoding corruption
     """
     try:
-        return path.encode('utf-8').decode('latin-1', errors='replace')
+        return path.encode("utf-8").decode("latin-1", errors="replace")
     except Exception:
         return path
 
@@ -185,8 +185,8 @@ def encode_path_cp437_corruption(path: str) -> str:
         Path with simulated double encoding
     """
     try:
-        utf8_bytes = path.encode('utf-8')
-        return utf8_bytes.decode('cp437', errors='replace')
+        utf8_bytes = path.encode("utf-8")
+        return utf8_bytes.decode("cp437", errors="replace")
     except Exception:
         return path
 
@@ -215,12 +215,12 @@ def generate_path_variants(normalized_path: str, raw_path: str | None) -> list[s
     if exist_encoded not in variants:
         variants.append(exist_encoded)
 
-    url_encoded = quote(normalized_path, safe='/')
+    url_encoded = quote(normalized_path, safe="/")
     if url_encoded not in variants:
         variants.append(url_encoded)
 
     # URL query-string encoding (spaces as +)
-    plus_encoded = normalized_path.replace(' ', '+')
+    plus_encoded = normalized_path.replace(" ", "+")
     if plus_encoded not in variants:
         variants.append(plus_encoded)
 
@@ -258,7 +258,9 @@ def should_process_backup(backup_index: int, frequency: int) -> bool:
     return backup_index % frequency == 0
 
 
-def load_ignored_parent_paths(config_path: str = "ignored_parent_paths.txt") -> set[str]:
+def load_ignored_parent_paths(
+    config_path: str = "ignored_parent_paths.txt",
+) -> set[str]:
     """Load ignored parent paths from configuration file.
 
     Args:

@@ -148,7 +148,9 @@ class CharterTracker:
                     parent_path = extract_parent_path(
                         normalized_path, self.charter_base_path
                     )
-                    new_charters.append((normalized_path, raw_path, parent_path, backup_id))
+                    new_charters.append(
+                        (normalized_path, raw_path, parent_path, backup_id)
+                    )
 
             appeared_count = len(new_charters)
             if new_charters:

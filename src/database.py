@@ -542,11 +542,14 @@ class Database:
                 WHERE current_status = 'missing'
             """)
             missing_charters = sum(
-                1 for (parent_path,) in cursor.fetchall()
+                1
+                for (parent_path,) in cursor.fetchall()
                 if parent_path not in ignored_parent_paths
             )
         else:
-            cursor.execute("SELECT COUNT(*) FROM charters WHERE current_status = 'missing'")
+            cursor.execute(
+                "SELECT COUNT(*) FROM charters WHERE current_status = 'missing'"
+            )
             missing_charters = cursor.fetchone()[0]
 
         cursor.execute(
@@ -565,7 +568,9 @@ class Database:
             "total_discrepancies": total_discrepancies,
         }
 
-    def get_missing_charters(self, ignored_parent_paths: set[str] | None = None) -> list:
+    def get_missing_charters(
+        self, ignored_parent_paths: set[str] | None = None
+    ) -> list:
         """Get all missing charters with details.
 
         Args:
@@ -596,13 +601,16 @@ class Database:
         # Filter out ignored parent paths
         if ignored_parent_paths:
             results = [
-                charter for charter in results
+                charter
+                for charter in results
                 if charter.get("parent_path") not in ignored_parent_paths
             ]
 
         return results
 
-    def get_missing_charters_by_parent(self, ignored_parent_paths: set[str] | None = None) -> list:
+    def get_missing_charters_by_parent(
+        self, ignored_parent_paths: set[str] | None = None
+    ) -> list:
         """Get missing charters grouped by parent path with aggregated statistics.
 
         Args:
@@ -633,13 +641,16 @@ class Database:
         # Filter out ignored parent paths
         if ignored_parent_paths:
             results = [
-                parent for parent in results
+                parent
+                for parent in results
                 if parent.get("parent_path") not in ignored_parent_paths
             ]
 
         return results
 
-    def get_missing_charters_for_extraction(self, ignored_parent_paths: set[str] | None = None) -> list:
+    def get_missing_charters_for_extraction(
+        self, ignored_parent_paths: set[str] | None = None
+    ) -> list:
         """Get missing charters with backup info for extraction.
 
         Args:
@@ -668,7 +679,8 @@ class Database:
         # Filter out ignored parent paths
         if ignored_parent_paths:
             results = [
-                charter for charter in results
+                charter
+                for charter in results
                 if charter.get("parent_path") not in ignored_parent_paths
             ]
 

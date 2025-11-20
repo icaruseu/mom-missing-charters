@@ -16,7 +16,11 @@ from tqdm import tqdm
 from src.azure_client import AzureBackupClient
 from src.charter_tracker import CharterTracker
 from src.database import Database
-from src.utils import generate_path_variants, load_ignored_parent_paths, should_process_backup
+from src.utils import (
+    generate_path_variants,
+    load_ignored_parent_paths,
+    should_process_backup,
+)
 
 
 def setup_logging(verbose: bool = False):
@@ -243,14 +247,18 @@ def cmd_parent_report(args):
     ignored_paths = load_ignored_parent_paths()
 
     with Database(config["sqlite_db_path"]) as db:
-        parent_stats = db.get_missing_charters_by_parent(ignored_parent_paths=ignored_paths)
+        parent_stats = db.get_missing_charters_by_parent(
+            ignored_parent_paths=ignored_paths
+        )
 
         if not parent_stats:
             print("\nNo missing charters found!")
             return
 
         total_missing = sum(p["missing_count"] for p in parent_stats)
-        print(f"\nMissing Charters by Parent Path ({len(parent_stats)} collections, {total_missing} total charters)")
+        print(
+            f"\nMissing Charters by Parent Path ({len(parent_stats)} collections, {total_missing} total charters)"
+        )
         print("=" * 60)
 
         if args.output:
@@ -275,8 +283,12 @@ def cmd_parent_report(args):
                 parent_path = parent["parent_path"] or "(root)"
                 print(f"\n{parent_path}")
                 print(f"  Missing charters: {parent['missing_count']}")
-                print(f"  First seen range: {parent['earliest_first_seen']} to {parent['latest_first_seen']}")
-                print(f"  Disappeared range: {parent['earliest_disappearance']} to {parent['latest_disappearance']}")
+                print(
+                    f"  First seen range: {parent['earliest_first_seen']} to {parent['latest_first_seen']}"
+                )
+                print(
+                    f"  Disappeared range: {parent['earliest_disappearance']} to {parent['latest_disappearance']}"
+                )
 
             if len(parent_stats) > args.limit:
                 print(f"\n... and {len(parent_stats) - args.limit} more collections")
@@ -301,7 +313,9 @@ def cmd_extract_missing(args):
     )
 
     with Database(config["sqlite_db_path"]) as db:
-        missing_charters = db.get_missing_charters_for_extraction(ignored_parent_paths=ignored_paths)
+        missing_charters = db.get_missing_charters_for_extraction(
+            ignored_parent_paths=ignored_paths
+        )
 
         if not missing_charters:
             print("\nNo missing charters found!")
@@ -352,7 +366,9 @@ def cmd_extract_missing(args):
                                 file_path = charter["file_path"]
                                 file_path_raw = charter["file_path_raw"]
 
-                                path_variants = generate_path_variants(file_path, file_path_raw)
+                                path_variants = generate_path_variants(
+                                    file_path, file_path_raw
+                                )
 
                                 found = False
                                 matched_variant = None
@@ -396,7 +412,7 @@ def cmd_extract_missing(args):
                             }
                         )
 
-        print(f"\nExtraction complete!")
+        print("\nExtraction complete!")
         print(f"  Successfully extracted: {extracted_count} charters")
         print(f"  Failed: {failed_count} charters")
         print(f"  Output: {output_path}")
@@ -409,7 +425,7 @@ def cmd_extract_missing(args):
                 writer.writerows(failed_items)
             print(f"  Failed items log: {failed_path}")
         elif failed_items:
-            print(f"\nUse --save-failed to save a list of failed extractions")
+            print("\nUse --save-failed to save a list of failed extractions")
 
 
 def main():
@@ -435,7 +451,10 @@ def main():
     )
     report_parser.add_argument("--output", "-o", help="Output CSV file path")
     report_parser.add_argument(
-        "--save", "-s", action="store_true", help="Save to reports directory with auto-generated filename"
+        "--save",
+        "-s",
+        action="store_true",
+        help="Save to reports directory with auto-generated filename",
     )
     report_parser.add_argument(
         "--limit", "-l", type=int, default=20, help="Limit console output"
@@ -446,7 +465,10 @@ def main():
     )
     parent_report_parser.add_argument("--output", "-o", help="Output CSV file path")
     parent_report_parser.add_argument(
-        "--save", "-s", action="store_true", help="Save to reports directory with auto-generated filename"
+        "--save",
+        "-s",
+        action="store_true",
+        help="Save to reports directory with auto-generated filename",
     )
     parent_report_parser.add_argument(
         "--limit", "-l", type=int, default=20, help="Limit console output"
@@ -456,10 +478,14 @@ def main():
         "extract-missing", help="Extract missing charters from their last-seen backups"
     )
     extract_parser.add_argument(
-        "--output", "-o", help="Output ZIP file path (default: auto-generated in reports directory)"
+        "--output",
+        "-o",
+        help="Output ZIP file path (default: auto-generated in reports directory)",
     )
     extract_parser.add_argument(
-        "--save-failed", action="store_true", help="Save list of failed extractions to CSV"
+        "--save-failed",
+        action="store_true",
+        help="Save list of failed extractions to CSV",
     )
     extract_parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"

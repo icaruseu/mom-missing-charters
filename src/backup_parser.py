@@ -200,4 +200,3 @@ class BackupParser:
             )
 
         return discrepancies
-
