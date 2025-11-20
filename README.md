@@ -81,7 +81,9 @@ python main.py reset [--force]
 
 ## Configuration
 
-Environment variables in `.env`:
+### Environment Variables
+
+Configure in `.env`:
 
 - `AZURE_CONTAINER_SAS_URL`: Container SAS URL (recommended)
   - Alternative: `AZURE_STORAGE_CONNECTION_STRING` + `AZURE_CONTAINER_NAME`
@@ -92,6 +94,22 @@ Environment variables in `.env`:
 - `SQLITE_DB_PATH`: Database location (default: `./charters.db`)
 - `REPORTS_DIR`: Report output directory (default: `./reports`)
 - `CHARTER_BASE_PATH`: Charter collection path in backups (default: `db/mom-data/metadata.charter.public`)
+
+### Ignored Parent Paths
+
+Create `ignored_parent_paths.txt` to exclude specific parent paths from reports and extraction. Useful for charters that were intentionally deleted or renamed.
+
+Format:
+
+```
+# Comments start with #
+# One parent path per line
+Fontenay
+CZ-NA/AZK|Anezka
+IlluminierteUrkunden
+```
+
+Affects: `stats`, `report`, `parent-report`, and `extract-missing` commands
 
 ## Technical Details
 
@@ -128,4 +146,3 @@ Charter filenames contain complex Unicode characters that may appear in differen
 5. **Process chronologically**: Essential for correct appearance/disappearance sequencing
 6. **Always include latest**: Most recent backup always processed regardless of frequency setting
 7. **Batch operations**: Handle 700K-1M charter scale efficiently with bulk inserts and transactions
-

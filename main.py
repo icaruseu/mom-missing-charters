@@ -16,7 +16,7 @@ from tqdm import tqdm
 from src.azure_client import AzureBackupClient
 from src.charter_tracker import CharterTracker
 from src.database import Database
-from src.utils import generate_path_variants, normalize_path, should_process_backup
+from src.utils import generate_path_variants, load_ignored_parent_paths, should_process_backup
 
 
 def setup_logging(verbose: bool = False):
@@ -171,15 +171,18 @@ def cmd_reset(args):
 def cmd_stats(args):
     """Show statistics."""
     config = load_config()
+    ignored_paths = load_ignored_parent_paths()
 
     with Database(config["sqlite_db_path"]) as db:
-        stats = db.get_stats()
+        stats = db.get_stats(ignored_parent_paths=ignored_paths)
 
         print("\nMOM Missing Charters Tracker - Statistics")
         print("=" * 60)
         print(f"Processed backups:      {stats['processed_backups']:,}")
         print(f"Total charters:         {stats['total_charters']:,}")
         print(f"Missing charters:       {stats['missing_charters']:,}")
+        if ignored_paths:
+            print(f"  (excluding {len(ignored_paths)} ignored parent path(s))")
         print(f"Disappearance events:   {stats['disappearance_events']:,}")
         print(f"Total discrepancies:    {stats['total_discrepancies']:,}")
         print()
@@ -188,9 +191,10 @@ def cmd_stats(args):
 def cmd_report(args):
     """Generate missing charters report."""
     config = load_config()
+    ignored_paths = load_ignored_parent_paths()
 
     with Database(config["sqlite_db_path"]) as db:
-        missing = db.get_missing_charters()
+        missing = db.get_missing_charters(ignored_parent_paths=ignored_paths)
 
         if not missing:
             print("\nNo missing charters found!")
@@ -236,9 +240,10 @@ def cmd_report(args):
 def cmd_parent_report(args):
     """Generate parent paths report showing missing charters by collection."""
     config = load_config()
+    ignored_paths = load_ignored_parent_paths()
 
     with Database(config["sqlite_db_path"]) as db:
-        parent_stats = db.get_missing_charters_by_parent()
+        parent_stats = db.get_missing_charters_by_parent(ignored_parent_paths=ignored_paths)
 
         if not parent_stats:
             print("\nNo missing charters found!")
@@ -282,6 +287,7 @@ def cmd_extract_missing(args):
     """Extract missing charters from their last-seen backups into a new ZIP."""
     setup_logging(verbose=args.verbose)
     config = load_config()
+    ignored_paths = load_ignored_parent_paths()
 
     print("MOM Missing Charters Tracker - Extract Missing")
     print("=" * 60)
@@ -295,7 +301,7 @@ def cmd_extract_missing(args):
     )
 
     with Database(config["sqlite_db_path"]) as db:
-        missing_charters = db.get_missing_charters_for_extraction()
+        missing_charters = db.get_missing_charters_for_extraction(ignored_parent_paths=ignored_paths)
 
         if not missing_charters:
             print("\nNo missing charters found!")

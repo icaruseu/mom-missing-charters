@@ -256,3 +256,36 @@ def should_process_backup(backup_index: int, frequency: int) -> bool:
     if frequency <= 1:
         return True
     return backup_index % frequency == 0
+
+
+def load_ignored_parent_paths(config_path: str = "ignored_parent_paths.txt") -> set[str]:
+    """Load ignored parent paths from configuration file.
+
+    Args:
+        config_path: Path to the ignored paths configuration file
+
+    Returns:
+        Set of parent paths to ignore
+    """
+    from pathlib import Path
+
+    config_file = Path(config_path)
+
+    if not config_file.exists():
+        return set()
+
+    ignored_paths = set()
+
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith("#"):
+                    continue
+                ignored_paths.add(line)
+    except Exception:
+        # If file cannot be read, return empty set
+        return set()
+
+    return ignored_paths

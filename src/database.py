@@ -516,8 +516,11 @@ class Database:
 
         return result
 
-    def get_stats(self) -> dict:
+    def get_stats(self, ignored_parent_paths: set[str] | None = None) -> dict:
         """Get database statistics.
+
+        Args:
+            ignored_parent_paths: Set of parent paths to exclude from missing charter count
 
         Returns:
             Dictionary with statistics
@@ -530,8 +533,21 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM charters")
         total_charters = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM charters WHERE current_status = 'missing'")
-        missing_charters = cursor.fetchone()[0]
+        # Count missing charters, excluding ignored parent paths
+        if ignored_parent_paths:
+            # Query all missing charters and filter in Python
+            cursor.execute("""
+                SELECT parent_path
+                FROM charters
+                WHERE current_status = 'missing'
+            """)
+            missing_charters = sum(
+                1 for (parent_path,) in cursor.fetchall()
+                if parent_path not in ignored_parent_paths
+            )
+        else:
+            cursor.execute("SELECT COUNT(*) FROM charters WHERE current_status = 'missing'")
+            missing_charters = cursor.fetchone()[0]
 
         cursor.execute(
             "SELECT COUNT(*) FROM charter_events WHERE event_type = 'disappeared'"
@@ -549,8 +565,11 @@ class Database:
             "total_discrepancies": total_discrepancies,
         }
 
-    def get_missing_charters(self) -> list:
+    def get_missing_charters(self, ignored_parent_paths: set[str] | None = None) -> list:
         """Get all missing charters with details.
+
+        Args:
+            ignored_parent_paths: Set of parent paths to exclude from results
 
         Returns:
             List of missing charter records
@@ -571,10 +590,23 @@ class Database:
             WHERE c.current_status = 'missing'
             ORDER BY c.parent_path, b2.backup_date DESC
         """)
-        return [dict(row) for row in cursor.fetchall()]
 
-    def get_missing_charters_by_parent(self) -> list:
+        results = [dict(row) for row in cursor.fetchall()]
+
+        # Filter out ignored parent paths
+        if ignored_parent_paths:
+            results = [
+                charter for charter in results
+                if charter.get("parent_path") not in ignored_parent_paths
+            ]
+
+        return results
+
+    def get_missing_charters_by_parent(self, ignored_parent_paths: set[str] | None = None) -> list:
         """Get missing charters grouped by parent path with aggregated statistics.
+
+        Args:
+            ignored_parent_paths: Set of parent paths to exclude from results
 
         Returns:
             List of parent path records with missing charter counts and date ranges
@@ -595,10 +627,23 @@ class Database:
             GROUP BY c.parent_path
             ORDER BY missing_count DESC, c.parent_path
         """)
-        return [dict(row) for row in cursor.fetchall()]
 
-    def get_missing_charters_for_extraction(self) -> list:
+        results = [dict(row) for row in cursor.fetchall()]
+
+        # Filter out ignored parent paths
+        if ignored_parent_paths:
+            results = [
+                parent for parent in results
+                if parent.get("parent_path") not in ignored_parent_paths
+            ]
+
+        return results
+
+    def get_missing_charters_for_extraction(self, ignored_parent_paths: set[str] | None = None) -> list:
         """Get missing charters with backup info for extraction.
+
+        Args:
+            ignored_parent_paths: Set of parent paths to exclude from results
 
         Returns:
             List of dictionaries with charter paths and their last-seen backup info
@@ -609,6 +654,7 @@ class Database:
                 c.id as charter_id,
                 c.file_path,
                 c.file_path_raw,
+                c.parent_path,
                 b.id as backup_id,
                 b.filename as backup_filename
             FROM charters c
@@ -616,7 +662,17 @@ class Database:
             WHERE c.current_status = 'missing'
             ORDER BY b.filename, c.file_path
         """)
-        return [dict(row) for row in cursor.fetchall()]
+
+        results = [dict(row) for row in cursor.fetchall()]
+
+        # Filter out ignored parent paths
+        if ignored_parent_paths:
+            results = [
+                charter for charter in results
+                if charter.get("parent_path") not in ignored_parent_paths
+            ]
+
+        return results
 
     def __enter__(self):
         """Context manager entry."""

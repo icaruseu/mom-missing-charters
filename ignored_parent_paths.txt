@@ -1,0 +1,51 @@
+# Ignored Parent Paths
+#
+# This file contains parent paths of charters that were intentionally deleted
+# and should not appear in missing charter reports.
+
+# Replaced by DiDip
+Fontenay
+
+# Czech Chartres, names got changed from CZ-NA/AZK|Anezka to CZ-NA/AZK-Anezka
+CZ-NA/AZK|Anezka
+CZ-NA/AZK|Anna
+CZ-NA/AZK|Borovany
+CZ-NA/AZK|Bystrice
+CZ-NA/AZK|Cheb
+CZ-NA/AZK|Chotesov
+CZ-NA/AZK|Dodatky
+CZ-NA/AZK|Doksany
+CZ-NA/AZK|Havel
+CZ-NA/AZK|Jiri
+CZ-NA/AZK|Karlov
+CZ-NA/AZK|Katerina
+CZ-NA/AZK|Kladruby
+CZ-NA/AZK|Koruna
+CZ-NA/AZK|Krumlov
+CZ-NA/AZK|Litomysl
+CZ-NA/AZK|Mikulas
+CZ-NA/AZK|Most
+CZ-NA/AZK|Pisek
+CZ-NA/AZK|Plasy
+CZ-NA/AZK|Pohled
+CZ-NA/AZK|Sazava
+CZ-NA/AZK|Smichov
+CZ-NA/AZK|Stribro
+CZ-NA/AZK|Trebon
+CZ-NA/AZK|Vaclav
+CZ-NA/AZK|Zatec
+CZ-NA/AZK|Zbraslav
+CZ-NA/AZK|Zderaz
+CZ-NA/RF|Cheb
+CZ-NA/RF|Kadan
+
+# Illurk
+IlluminierteUrkunden
+IlluminierteUrkundenBischofsammelablaesse
+IlluminierteUrkundenCimelia
+IlluminierteUrkundenFrankreich
+IlluminierteUrkundenIllUrkOe
+IlluminierteUrkundenItalien
+IlluminierteUrkundenKardinalsammelindulgenzen
+IlluminierteUrkundenKurie
+IlluminierteUrkundenWappenbriefe
