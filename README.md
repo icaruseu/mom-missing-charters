@@ -37,7 +37,7 @@ Analyzes ~400 eXist-db backup files (2017-present) containing 700K-1M charter XM
 
 ```bash
 # Process backups and track charters
-python main.py sync [--verbose]
+python main.py sync [--verbose] [--start-date YYYY-MM-DD]
 
 # Show statistics
 python main.py stats
@@ -57,6 +57,9 @@ python main.py reset [--force]
 
 - **sync**: Process backups chronologically and track state changes
   - `--verbose`: Enable debug logging
+  - `--start-date YYYY-MM-DD`: Set new baseline - first backup after this date becomes the starting point
+    - Useful when corrections were made on a date: since backups are nightly, the backup from that date was likely made before corrections
+    - Excludes the specified date and all earlier backups
   - Always processes latest backup regardless of frequency setting
 
 - **stats**: Show summary statistics (total charters, missing, events, discrepancies)
@@ -90,6 +93,12 @@ Configure in `.env`:
 - `BACKUP_FREQUENCY`: Sampling rate - process every Nth backup (default: 7)
   - `1` = all backups, `7` = every 7th, `30` = every 30th
   - Latest backup always included regardless of this setting
+- `START_DATE`: Set new baseline date in YYYY-MM-DD format (optional)
+  - First backup after this date becomes the new baseline for tracking
+  - Use when corrections were made on a date: backups from that date were likely made before corrections (nightly backups)
+  - Prevents false positives from before the correction date
+  - Command-line `--start-date` overrides this setting
+  - Example: `START_DATE=2025-12-05` (first backup after 2025-12-05 becomes new baseline)
 - `BACKUP_CACHE_DIR`: Local cache for downloaded backups (default: `./cache/backups`)
 - `SQLITE_DB_PATH`: Database location (default: `./charters.db`)
 - `REPORTS_DIR`: Report output directory (default: `./reports`)

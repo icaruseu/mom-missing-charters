@@ -6,7 +6,8 @@
 # Replaced by DiDip
 Fontenay
 
-# Czech Chartres, names got changed from CZ-NA/AZK|Anezka to CZ-NA/AZK-Anezka
+# Czech Charters, names got changed from CZ-NA/AZK|Anezka to CZ-NA/AZK-Anezka
+CZ-NA/AZK|Ambroz
 CZ-NA/AZK|Anezka
 CZ-NA/AZK|Anna
 CZ-NA/AZK|Borovany
@@ -39,6 +40,9 @@ CZ-NA/AZK|Zderaz
 CZ-NA/RF|Cheb
 CZ-NA/RF|Kadan
 
+# Was likely a wrongly named fond
+CZ-NA/DZ
+
 # Illurk
 IlluminierteUrkunden
 IlluminierteUrkundenBischofsammelablaesse
@@ -49,3 +53,9 @@ IlluminierteUrkundenItalien
 IlluminierteUrkundenKardinalsammelindulgenzen
 IlluminierteUrkundenKurie
 IlluminierteUrkundenWappenbriefe
+
+# Göttingen: manually modified, some charters had to be renamed
+DE-GAUnivGoet/AppDipl
+
+# Was corrected at some point
+ES-AHN/MonasterioSanSalvadorDeSobrado

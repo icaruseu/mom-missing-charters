@@ -75,6 +75,7 @@ def load_config() -> dict:
         "charter_base_path": os.getenv(
             "CHARTER_BASE_PATH", "db/mom-data/metadata.charter.public"
         ),
+        "start_date": os.getenv("START_DATE"),
     }
 
 
@@ -101,6 +102,33 @@ def cmd_sync(args):
         print("\nFetching backup list from Azure...")
         all_backups = azure_client.list_full_backups()
         print(f"Found {len(all_backups)} full backups")
+
+        # Filter by start date if provided (command-line arg takes precedence over .env)
+        start_date_str = args.start_date or config.get("start_date")
+        if start_date_str:
+            from src.utils import parse_backup_filename
+
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                print(f"\nFiltering backups after {start_date_str}...")
+
+                # Filter backups to only those strictly after the start date
+                filtered_backups = []
+                for backup in all_backups:
+                    backup_date = parse_backup_filename(backup)
+                    if backup_date and backup_date > start_date:
+                        filtered_backups.append(backup)
+
+                all_backups = filtered_backups
+                print(f"Found {len(all_backups)} backups after start date")
+
+                if not all_backups:
+                    print("\nNo backups found after the specified start date!")
+                    return
+
+            except ValueError:
+                print(f"Error: Invalid date format '{start_date_str}'. Expected YYYY-MM-DD (e.g., 2025-12-05)")
+                return
 
         frequency = config["backup_frequency"]
         backups_to_process = [
@@ -439,6 +467,10 @@ def main():
     sync_parser = subparsers.add_parser("sync", help="Download and process backups")
     sync_parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
+    sync_parser.add_argument(
+        "--start-date",
+        help="Only process backups from this date onwards (format: YYYY-MM-DD, e.g., 2025-12-05)",
     )
 
     reset_parser = subparsers.add_parser("reset", help="Reset database")
